@@ -1,10 +1,12 @@
 import streamlit as st
-from database import conectar, criar_tabelas
+from database import conectar_db, criar_tabelas
 from autentic import verificar_login, verificar_usuario_existente, criar_usuario
 from transacoes import adicionar_transacao, carregar_dados_usuario
 from dashboard import mostrar_dashboard
+from login import login
+from cadastro import cadastro
 
-conn = conectar()
+conn = conectar_db()
 criar_tabelas(conn)
 
 def pagina_principal(usuario):
@@ -32,35 +34,9 @@ def main():
     menu = st.sidebar.radio("Menu", ["Login", "Criar Conta"])
 
     if menu == "Login":
-        usuario = st.sidebar.text_input("Usuário")
-        senha = st.sidebar.text_input("Senha", type="password")
-
-        if st.sidebar.button("Entrar"):
-            if verificar_login(conn, usuario, senha):
-                st.session_state['usuario'] = usuario
-                st.rerun()
-            else:
-                st.sidebar.error("Usuário ou senha incorretos.")
-
+        login()
     elif menu == "Criar Conta":
-        novo_usuario = st.sidebar.text_input("Novo Usuário")
-        nova_senha = st.sidebar.text_input("Nova Senha", type="password")
-        genero = st.sidebar.selectbox("Gênero", ["Masculino", "Feminino", "Outro", "Prefiro não dizer"])
-        idade = st.sidebar.number_input("Idade", min_value=10, max_value=120, step=1)
-        profissao = st.sidebar.text_input("Profissão")
+        cadastro()
 
-        if st.sidebar.button("Criar"):
-            if novo_usuario == "" or nova_senha == "":
-                st.sidebar.warning("Preencha todos os campos.")
-            elif verificar_usuario_existente(conn, novo_usuario):
-                st.sidebar.error("Erro: nome de usuário já está sendo utilizado.")
-            else:
-                if criar_usuario(conn, novo_usuario, nova_senha, genero, idade, profissao):
-                    st.sidebar.success("Conta criada com sucesso! Faça login.")
-                else:
-                    st.sidebar.error("Erro ao criar conta.")
-
-    if 'usuario' in st.session_state:
-        pagina_principal(st.session_state['usuario'])
-
-main()
+if __name__ == "__main__":
+    main()
