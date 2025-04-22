@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import numpy as np
 import os
 
 st.set_page_config(page_title="Gerenciador de Orçamento", layout="wide")
@@ -314,7 +315,16 @@ def mostrar_dashboard(usuario):
                 st.write("### 📉 Estimativa de Densidade de Despesas")
                 kde = go.Figure()
                 kde.add_trace(go.Histogram(x=df_despesas["valor_brl"], histnorm='probability density', nbinsx=30, name="Histograma"))
-                kde.add_trace(go.Scatter(x=df_despesas["valor_brl"], y=df_despesas["valor_brl"].plot.kde().values, mode='lines', name="KDE"))
+                if not df_despesas["valor_brl"].empty:
+                    values = df_despesas["valor_brl"]
+                    hist, bins = np.histogram(values, bins=30, density=True)
+                    bin_centers = (bins[:-1] + bins[1:]) / 2
+                    sigma = values.std() / 5
+                    kde_values = np.zeros_like(bin_centers)
+                    for v in values:
+                        kde_values += np.exp(-((bin_centers - v) ** 2) / (2 * sigma ** 2)) / (np.sqrt(2 * np.pi) * sigma)
+                    kde_values /= len(values)
+                    kde.add_trace(go.Scatter(x=bin_centers, y=kde_values, mode='lines', name="KDE"))
                 kde.update_layout(title="Estimativa de Densidade de Despesas", xaxis_title="Valor (R$)", yaxis_title="Densidade")
                 st.plotly_chart(kde, use_container_width=True)
 
@@ -325,12 +335,15 @@ def gerenciar_transacoes(usuario):
         st.info("Nenhuma transação registrada.")
         return
     st.dataframe(df[['id', 'tipo', 'categoria', 'valor', 'data', 'moeda', 'valor_brl']], use_container_width=True)
+    st.write("IDs válidos:", ", ".join(df['id'].astype(str).tolist()))
     transacao_id = st.number_input("ID da Transação", min_value=1, step=1)
     acao = st.selectbox("Ação", ["Editar", "Excluir"])
     if acao == "Editar":
-        with st.form("form_editar_transacao"):
-            transacao = df[df['id'] == transacao_id]
-            if not transacao.empty:
+        transacao = df[df['id'] == transacao_id]
+        if transacao.empty:
+            st.warning(f"Transação com ID {transacao_id} não encontrada. Escolha um ID válido.")
+        else:
+            with st.form("form_editar_transacao"):
                 tipo = st.selectbox("Tipo", ["Receita", "Despesa"], index=0 if transacao['tipo'].iloc[0] == "Receita" else 1)
                 categoria = st.selectbox("Categoria", ["Alimentação", "Transporte", "Lazer", "Educação", "Salário", "Outros"], 
                                         index=["Alimentação", "Transporte", "Lazer", "Educação", "Salário", "Outros"].index(transacao['categoria'].iloc[0]))
@@ -341,8 +354,6 @@ def gerenciar_transacoes(usuario):
                 if submit:
                     if editar_transacao(transacao_id, usuario, tipo, categoria, valor, data.strftime('%Y-%m-%d'), moeda):
                         st.success("Transação editada com sucesso!")
-            else:
-                st.error("Transação não encontrada.")
     elif acao == "Excluir":
         if st.button("Confirmar Exclusão"):
             if excluir_transacao(transacao_id, usuario):
