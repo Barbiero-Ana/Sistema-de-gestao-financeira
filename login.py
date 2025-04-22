@@ -11,13 +11,9 @@ def login():
         senha = st.text_input("Senha", type="password")
 
         if st.button("Entrar"):
-            # Verificar se o usuário existe e se a senha está correta
-            if db.usuario_existe(usuario):  # Verifica se o usuário existe
-                if db.verificar_usuario(usuario, senha):  # Verifica se a senha está correta
-                    st.success("Login realizado com sucesso!")
-                    st.session_state['usuario'] = usuario
-                    st.experimental_rerun()  # Força o reload da página após login bem-sucedido
-                else:
-                    st.error("Senha inválida.")
+            if db.verificar_usuario(usuario, senha):
+                st.success("Login realizado com sucesso!")
+                st.session_state['usuario'] = usuario
+                st.rerun()  # Força o reload da página após login bem-sucedido
             else:
-                st.error("Usuário não encontrado.")
+                st.error("Usuário ou senha inválidos.")
