@@ -1,13 +1,20 @@
 import pandas as pd
+import database as db
 
-def adicionar_transacao(conn, username, tipo, categoria, valor, data):
-    c = conn.cursor()
-    c.execute("INSERT INTO transacoes (username, tipo, categoria, valor, data) VALUES (?, ?, ?, ?, ?)",
-            (username, tipo, categoria, valor, data))
-    conn.commit()
+# Função para adicionar uma transação (receita/despesa)
+def adicionar_transacao(conn, usuario, tipo, categoria, valor, data):
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM usuarios WHERE usuario = ?", (usuario,))
+    usuario_id = cursor.fetchone()[0]  # Obtém o id do usuário
+    
+    db.adicionar_transacao(usuario_id, tipo, categoria, valor, data)
 
-def carregar_dados_usuario(conn, username):
-    c = conn.cursor()
-    c.execute("SELECT * FROM transacoes WHERE username = ?", (username,))
-    rows = c.fetchall()
-    return pd.DataFrame(rows, columns=['id', 'username', 'tipo', 'categoria', 'valor', 'data'])
+# Função para carregar os dados de transações de um usuário
+def carregar_dados_usuario(conn, usuario):
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM usuarios WHERE usuario = ?", (usuario,))
+    usuario_id = cursor.fetchone()[0]
+    
+    transacoes = db.carregar_transacoes(usuario_id)
+    df = pd.DataFrame(transacoes, columns=['id', 'usuario_id', 'tipo', 'categoria', 'valor', 'data'])
+    return df
