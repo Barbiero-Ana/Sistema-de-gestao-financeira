@@ -31,6 +31,11 @@ def criar_tabelas():
                         valor REAL,
                         periodo TEXT,
                         FOREIGN KEY(usuario) REFERENCES usuarios(usuario))''')
+        c.execute("PRAGMA table_info(transacoes)")
+        columns = [info[1] for info in c.fetchall()]
+        if 'moeda' not in columns:
+            c.execute("ALTER TABLE transacoes ADD COLUMN moeda TEXT DEFAULT 'BRL'")
+            c.execute("UPDATE transacoes SET moeda = 'BRL' WHERE moeda IS NULL")
 
 criar_tabelas()
 
@@ -171,6 +176,8 @@ def carregar_dados(usuario, filtro_periodo=None, mes=None, ano=None):
         df = pd.read_sql_query(query, conn, params=tuple(params))
     if not df.empty:
         df['data'] = pd.to_datetime(df['data'], format='%Y-%m-%d', errors='coerce')
+        if 'moeda' not in df.columns:
+            df['moeda'] = 'BRL'
         df['valor_brl'] = df.apply(lambda x: converter_moeda(x['valor'], x['moeda']), axis=1)
     else:
         df = pd.DataFrame(columns=['id', 'usuario', 'tipo', 'categoria', 'valor', 'data', 'moeda', 'valor_brl'])
@@ -190,10 +197,12 @@ def exportar_dados(df, filtro_periodo, mes=None, ano=None):
 
 def calcular_tendencias(df):
     if df.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=['mes_ano']), pd.DataFrame(columns=['mes_ano'])
     df['mes_ano'] = df['data'].dt.to_period('M')
     tendencias = df.groupby(['mes_ano', 'categoria'])['valor_brl'].sum().unstack().fillna(0)
     tendencias_pct = tendencias.pct_change().replace([float('inf'), -float('inf')], 0).fillna(0) * 100
+    tendencias.index = tendencias.index.astype(str)
+    tendencias_pct.index = tendencias_pct.index.astype(str)
     return tendencias, tendencias_pct
 
 def verificar_metas(df, metas, filtro_periodo, mes, ano):
